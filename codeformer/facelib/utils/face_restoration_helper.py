@@ -58,6 +58,8 @@ class FaceRestoreHelper(object):
     def __init__(
         self,
         upscale_factor,
+        detection_model_path,
+        parsing_model_path,
         face_size=512,
         crop_ratio=(1, 1),
         det_model="retinaface_resnet50",
@@ -136,11 +138,11 @@ class FaceRestoreHelper(object):
                 dlib_model_url["face_detector"], dlib_model_url["shape_predictor_5"]
             )
         else:
-            self.face_detector = init_detection_model(det_model, half=False, device=self.device)
+            self.face_detector = init_detection_model(det_model, model_path=detection_model_path, half=False, device=self.device)
 
         # init face parsing model
         self.use_parse = use_parse
-        self.face_parse = init_parsing_model(model_name="parsenet", device=self.device)
+        self.face_parse = init_parsing_model(model_path=parsing_model_path, model_name="parsenet", device=self.device)
 
     def set_upscale_factor(self, upscale_factor):
         self.upscale_factor = upscale_factor
