@@ -10,28 +10,28 @@ from codeformer.facelib.detection.retinaface.retinaface import RetinaFace
 from codeformer.facelib.detection.yolov5face.face_detector import YoloDetector
 
 
-def init_detection_model(model_name, half=False, device="cuda"):
+def init_detection_model(model_name, model_path, half=False, device="cuda"):
     if "retinaface" in model_name:
-        model = init_retinaface_model(model_name, half, device)
+        model = init_retinaface_model(model_name, model_path, half, device)
     elif "YOLOv5" in model_name:
-        model = init_yolov5face_model(model_name, device)
+        model = init_yolov5face_model(model_name, model_path, device)
     else:
         raise NotImplementedError(f"{model_name} is not implemented.")
 
     return model
 
 
-def init_retinaface_model(model_name, half=False, device="cuda"):
+def init_retinaface_model(model_name, model_path, half=False, device="cuda"):
     if model_name == "retinaface_resnet50":
         model = RetinaFace(network_name="resnet50", half=half)
-        model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_Resnet50_Final.pth"
+        # model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_Resnet50_Final.pth"
     elif model_name == "retinaface_mobile0.25":
         model = RetinaFace(network_name="mobile0.25", half=half)
-        model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth"
+        # model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/detection_mobilenet0.25_Final.pth"
     else:
         raise NotImplementedError(f"{model_name} is not implemented.")
 
-    model_path = load_file_from_url(url=model_url, model_dir="weights/facelib", progress=True, file_name=None)
+    # model_path = load_file_from_url(url=model_url, model_dir="weights/facelib", progress=True, file_name=None)
     load_net = torch.load(model_path, map_location=lambda storage, loc: storage)
     # remove unnecessary 'module.'
     for k, v in deepcopy(load_net).items():
@@ -45,17 +45,17 @@ def init_retinaface_model(model_name, half=False, device="cuda"):
     return model
 
 
-def init_yolov5face_model(model_name, device="cuda"):
+def init_yolov5face_model(model_name, model_path, device="cuda"):
     if model_name == "YOLOv5l":
         model = YoloDetector(config_name="facelib/detection/yolov5face/models/yolov5l.yaml", device=device)
-        model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/yolov5l-face.pth"
+        # model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/yolov5l-face.pth"
     elif model_name == "YOLOv5n":
         model = YoloDetector(config_name="facelib/detection/yolov5face/models/yolov5n.yaml", device=device)
-        model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/yolov5n-face.pth"
+        # model_url = "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/yolov5n-face.pth"
     else:
         raise NotImplementedError(f"{model_name} is not implemented.")
 
-    model_path = load_file_from_url(url=model_url, model_dir="weights/facelib", progress=True, file_name=None)
+    # model_path = load_file_from_url(url=model_url, model_dir="weights/facelib", progress=True, file_name=None)
     load_net = torch.load(model_path, map_location=lambda storage, loc: storage)
     model.detector.load_state_dict(load_net, strict=True)
     model.detector.eval()
