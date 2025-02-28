@@ -58,8 +58,8 @@ class FaceRestoreHelper(object):
     def __init__(
         self,
         upscale_factor,
-        detection_model_path,
-        parsing_model_path,
+        detection_model,
+        parsing_model,
         face_size=512,
         crop_ratio=(1, 1),
         det_model="retinaface_resnet50",
@@ -138,11 +138,13 @@ class FaceRestoreHelper(object):
                 dlib_model_url["face_detector"], dlib_model_url["shape_predictor_5"]
             )
         else:
-            self.face_detector = init_detection_model(det_model, model_path=detection_model_path, half=False, device=self.device)
+            # self.face_detector = init_detection_model(det_model, model_path=detection_model_path, half=False, device=self.device)
+            self.face_detector = detection_model
 
         # init face parsing model
         self.use_parse = use_parse
-        self.face_parse = init_parsing_model(model_path=parsing_model_path, model_name="parsenet", device=self.device)
+        # self.face_parse = init_parsing_model(model_path=parsing_model_path, model_name="parsenet", device=self.device)
+        self.face_parse = parsing_model
 
     def set_upscale_factor(self, upscale_factor):
         self.upscale_factor = upscale_factor
@@ -229,16 +231,28 @@ class FaceRestoreHelper(object):
             input_img = cv2.resize(self.input_img, (w, h), interpolation=interp)
 
         with torch.no_grad():
-            bboxes = self.face_detector.detect_faces(input_img)
+            # bboxes = self.face_detector.detect_faces(input_img)
+            bboxes = self.face_detector(input_img)
 
-        if bboxes is None or bboxes.shape[0] == 0:
+
+        if bboxes is None or len(bboxes) == 0:
             return 0
-        else:
-            bboxes = bboxes / scale
+        # else:
+        #     bboxes = bboxes / scale
 
         for bbox in bboxes:
+            bbox = np.array([
+                bbox.box[0].x, bbox.box[0].y,  # Top-left corner
+                bbox.box[1].x, bbox.box[1].y,  # Bottom-right corner
+                bbox.score,  # Detection confidence score
+                bbox.keypoints.eye_left.x, bbox.keypoints.eye_left.y,
+                bbox.keypoints.eye_right.x, bbox.keypoints.eye_right.y,
+                bbox.keypoints.nose.x, bbox.keypoints.nose.y,
+                bbox.keypoints.mouth_left.x, bbox.keypoints.mouth_left.y,
+                bbox.keypoints.mouth_right.x, bbox.keypoints.mouth_right.y
+            ], dtype=np.float32) / scale
             # remove faces with too small eye distance: side faces or too small faces
-            eye_dist = np.linalg.norm([bbox[6] - bbox[8], bbox[7] - bbox[9]])
+            eye_dist = np.linalg.norm([bbox[5] - bbox[7], bbox[6] - bbox[8]])
             if eye_dist_threshold is not None and (eye_dist < eye_dist_threshold):
                 continue
 
@@ -480,9 +494,10 @@ class FaceRestoreHelper(object):
                 face_input = img2tensor(face_input.astype("float32") / 255.0, bgr2rgb=True, float32=True)
                 normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
                 face_input = torch.unsqueeze(face_input, 0).to(self.device)
-                with torch.no_grad():
-                    out = self.face_parse(face_input)[0]
-                out = out.argmax(dim=1).squeeze().cpu().numpy()
+                # with torch.no_grad():
+                #     out = self.face_parse(face_input)[0]
+                # out = out.argmax(dim=1).squeeze().cpu().numpy()
+                out = self.face_parse(face_input)
 
                 parse_mask = np.zeros(out.shape)
                 MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
