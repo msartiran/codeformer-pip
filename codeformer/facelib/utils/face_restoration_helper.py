@@ -163,9 +163,9 @@ class FaceRestoreHelper(object):
             img = img[:, :, 0:3]
 
         self.input_img = img
-        self.is_gray = is_gray(img, threshold=10)
-        if self.is_gray:
-            print("Grayscale input: True")
+        # self.is_gray = is_gray(img, threshold=10)
+        # if self.is_gray:
+        #     print("Grayscale input: True")
 
         if min(self.input_img.shape[:2]) < 512:
             f = 512.0 / min(self.input_img.shape[:2])
@@ -395,10 +395,10 @@ class FaceRestoreHelper(object):
                 torch.save(inverse_affine, save_path)
 
     def add_restored_face(self, restored_face, input_face=None):
-        if self.is_gray:
-            restored_face = bgr2gray(restored_face)  # convert img into grayscale
-            if input_face is not None:
-                restored_face = adain_npy(restored_face, input_face)  # transfer the color
+        # if self.is_gray:
+        #     restored_face = bgr2gray(restored_face)  # convert img into grayscale
+        #     if input_face is not None:
+        #         restored_face = adain_npy(restored_face, input_face)  # transfer the color
         self.restored_faces.append(restored_face)
 
     def paste_faces_to_input_image(self, save_path=None, upsample_img=None, draw_box=False, face_upsampler=None):
@@ -490,14 +490,16 @@ class FaceRestoreHelper(object):
             # parse mask
             if self.use_parse:
                 # inference
-                face_input = cv2.resize(restored_face, (512, 512), interpolation=cv2.INTER_LINEAR)
-                face_input = img2tensor(face_input.astype("float32") / 255.0, bgr2rgb=True, float32=True)
-                normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
-                face_input = torch.unsqueeze(face_input, 0).to(self.device)
+                # face_input = cv2.resize(restored_face, (512, 512), interpolation=cv2.INTER_LINEAR)
+                # face_input = img2tensor(face_input.astype("float32") / 255.0, bgr2rgb=True, float32=True)
+                # normalize(face_input, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
+                # face_input = torch.unsqueeze(face_input, 0).to(self.device)
                 # with torch.no_grad():
                 #     out = self.face_parse(face_input)[0]
                 # out = out.argmax(dim=1).squeeze().cpu().numpy()
-                out = self.face_parse(face_input)
+                # out = self.face_parse(face_input)
+                out = self.face_parse(restored_face)
+
 
                 parse_mask = np.zeros(out.shape)
                 MASK_COLORMAP = [0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 0, 0, 0]
