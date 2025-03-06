@@ -167,9 +167,9 @@ class FaceRestoreHelper(object):
         # if self.is_gray:
         #     print("Grayscale input: True")
 
-        if min(self.input_img.shape[:2]) < 512:
-            f = 512.0 / min(self.input_img.shape[:2])
-            self.input_img = cv2.resize(self.input_img, (0, 0), fx=f, fy=f, interpolation=cv2.INTER_LINEAR)
+        # if min(self.input_img.shape[:2]) < 512:
+        #     f = 512.0 / min(self.input_img.shape[:2])
+        #     self.input_img = cv2.resize(self.input_img, (0, 0), fx=f, fy=f, interpolation=cv2.INTER_LINEAR)
 
     def init_dlib(self, detection_path, landmark5_path):
         """Initialize the dlib detectors and predictors."""
@@ -401,7 +401,29 @@ class FaceRestoreHelper(object):
         #         restored_face = adain_npy(restored_face, input_face)  # transfer the color
         self.restored_faces.append(restored_face)
 
-    def paste_faces_to_input_image(self, save_path=None, upsample_img=None, draw_box=False, face_upsampler=None):
+    def get_output_face_size(self, inverse_affine):
+        upscaled_face_size = 512 * self.upscale_factor
+        face_corners = np.array([
+            [0, 0],          # Top-left
+            [upscaled_face_size, 0],     # Top-right
+            [0, upscaled_face_size],     # Bottom-left
+            [upscaled_face_size, upscaled_face_size] # Bottom-right
+        ], dtype=np.float32)
+
+        inverse_affine /= self.upscale_factor
+        inverse_affine[:, 2] *= self.upscale_factor
+
+        output_corners = cv2.transform(np.array([face_corners]), inverse_affine)[0]
+
+        x_min, y_min = output_corners.min(axis=0)
+        x_max, y_max = output_corners.max(axis=0)
+
+        output_face_width = int(x_max - x_min)
+        output_face_height = int(y_max - y_min)
+        return output_face_width, output_face_height
+
+
+    def paste_faces_to_input_image(self, save_path=None, upsample_img=None, draw_box=False, face_upsampler=None, second_face_upsampler=None, second_face_upsampler_threshold=1024):
         h, w, _ = self.input_img.shape
         h_up, w_up = int(h * self.upscale_factor), int(w * self.upscale_factor)
 
@@ -418,8 +440,17 @@ class FaceRestoreHelper(object):
 
         inv_mask_borders = []
         for restored_face, inverse_affine in zip(self.restored_faces, self.inverse_affine_matrices):
-            if face_upsampler is not None:
-                restored_face = face_upsampler.enhance(restored_face, outscale=self.upscale_factor)[0]
+            output_face_width, output_face_height = self.get_output_face_size(inverse_affine.copy())
+
+            if output_face_height < 512 or output_face_width < 512:
+                upsampler = None
+            elif output_face_height < second_face_upsampler_threshold and output_face_width < second_face_upsampler_threshold:
+                upsampler = face_upsampler
+            else:
+                upsampler = second_face_upsampler if second_face_upsampler else face_upsampler
+            
+            if upsampler is not None:
+                restored_face = upsampler.enhance(restored_face, outscale=self.upscale_factor)[0]
                 inverse_affine /= self.upscale_factor
                 inverse_affine[:, 2] *= self.upscale_factor
                 face_size = (self.face_size[0] * self.upscale_factor, self.face_size[1] * self.upscale_factor)
